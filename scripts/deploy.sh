@@ -5,7 +5,7 @@
 
 set -e
 
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT}"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-strange-math-475005-p1}"
 
 if [ -z "$PROJECT_ID" ]; then
     echo "Please set GOOGLE_CLOUD_PROJECT environment variable"

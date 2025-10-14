@@ -6,9 +6,9 @@
 set -e
 
 # Configuration
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT}"
-CLUSTER_NAME="microservices-cluster"
-REGION="us-central1"
+PROJECT_ID="${GOOGLE_CLOUD_PROJECT:-strange-math-475005-p1}"
+CLUSTER_NAME="software-cluster"
+REGION="us-east1"
 
 if [ -z "$PROJECT_ID" ]; then
     echo "Please set GOOGLE_CLOUD_PROJECT environment variable"
