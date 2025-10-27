@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: microservices-gateway
+  namespace: default
+  labels:
+    app: microservices-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: microservices-gateway
+  template:
+    metadata:
+      labels:
+        app: microservices-gateway
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25-alpine
+        ports:
+        - containerPort: 80
+        - containerPort: 9000
+        - containerPort: 8080
+        - containerPort: 3000
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-gateway-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-gateway-config
+  namespace: default
+data:
+  default.conf: |
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://frontend:80;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    
+    server {
+        listen 9000;
+        location / {
+            proxy_pass http://api-gateway:9000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    
+    server {
+        listen 8080;
+        location / {
+            proxy_pass http://keycloak:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    
+    server {
+        listen 3000;
+        location / {
+            proxy_pass http://grafana:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: microservices-gateway
+  namespace: default
+  labels:
+    app: microservices-gateway
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  - name: api-gateway
+    port: 9000
+    targetPort: 9000
+    protocol: TCP
+  - name: keycloak
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  - name: grafana
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  selector:
+    app: microservices-gateway

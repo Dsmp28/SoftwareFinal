@@ -5,10 +5,10 @@
 
 set -e
 
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT}"
+PROJECT_ID="strange-math-475005-p1"
 
 if [ -z "$PROJECT_ID" ]; then
-    echo "Please set GOOGLE_CLOUD_PROJECT environment variable"
+    echo "Please set PROJECT_ID variable or GOOGLE_CLOUD_PROJECT environment variable"
     exit 1
 fi
 
@@ -19,7 +19,7 @@ wait_for_deployment() {
     local deployment_name=$1
     local namespace=${2:-default}
     echo "Waiting for deployment $deployment_name to be ready..."
-    kubectl wait --for=condition=available --timeout=300s deployment/$deployment_name -n $namespace
+    kubectl wait --for=condition=available --timeout=300s deployment/$deployment_name -n $namespace 2>/dev/null || echo "Deployment $deployment_name not found or not ready yet"
 }
 
 # Function to wait for pods to be ready
@@ -27,7 +27,7 @@ wait_for_pods() {
     local app_label=$1
     local namespace=${2:-default}
     echo "Waiting for pods with label app=$app_label to be ready..."
-    kubectl wait --for=condition=ready --timeout=300s pod -l app=$app_label -n $namespace
+    kubectl wait --for=condition=ready --timeout=300s pod -l app=$app_label -n $namespace 2>/dev/null || echo "Pods with label $app_label not found or not ready yet"
 }
 
 # Update PROJECT_ID in Kubernetes manifests
@@ -36,44 +36,63 @@ find k8s/services -name "*.yaml" -exec sed -i.bak "s/PROJECT_ID/$PROJECT_ID/g" {
 
 echo "🚀 Deploying in order of dependencies..."
 
-# 1. Deploy databases first
+# 1. Deploy secrets first
+echo "🔐 Deploying secrets..."
+kubectl apply -f k8s/secrets.yaml
+
+# 2. Deploy databases
 echo "📦 Deploying databases..."
 kubectl apply -f k8s/databases/
 
 echo "⏳ Waiting for databases to be ready..."
-wait_for_deployment "mysql"
-wait_for_deployment "mongodb"
-wait_for_deployment "zookeeper"
-wait_for_deployment "kafka"
-wait_for_deployment "schema-registry"
+wait_for_deployment "mysql" "default"
+wait_for_deployment "mongodb" "default"
+wait_for_deployment "zookeeper" "default"
+wait_for_deployment "kafka" "default"
+wait_for_deployment "schema-registry" "default"
 
-# 2. Deploy Keycloak (depends on MySQL)
+# 3. Deploy Keycloak (depends on MySQL)
 echo "🔐 Deploying Keycloak..."
 kubectl apply -f k8s/auth/keycloak.yaml
-wait_for_deployment "keycloak-mysql"
-wait_for_deployment "keycloak"
+wait_for_deployment "keycloak-mysql" "default"
+wait_for_deployment "keycloak" "default"
 
-# 3. Deploy monitoring stack
+# 4. Deploy monitoring stack
 echo "📊 Deploying monitoring stack..."
 kubectl apply -f k8s/monitoring/
-wait_for_deployment "prometheus"
-wait_for_deployment "grafana"
-wait_for_deployment "tempo"
-wait_for_deployment "loki"
+wait_for_deployment "prometheus" "default"
+wait_for_deployment "grafana" "default"
+wait_for_deployment "tempo" "default"
+wait_for_deployment "loki" "default"
 
-# 4. Deploy microservices (depends on databases and Keycloak)
+# 5. Deploy microservices (depends on databases and Keycloak)
 echo "🔧 Deploying microservices..."
 kubectl apply -f k8s/services/
 
-echo "⏳ Waiting for microservices to be ready..."
-wait_for_deployment "product-service"
-wait_for_deployment "inventory-service"
-wait_for_deployment "order-service"
-wait_for_deployment "notification-service"
-wait_for_deployment "api-gateway"
-wait_for_deployment "frontend"
+# 5.5. Deploy gateway proxy for LoadBalancer
+echo "🔗 Deploying gateway proxy..."
+kubectl apply -f k8s/gateway-proxy.yaml
 
-# 5. Deploy ingress
+echo "⏳ Waiting for microservices to be ready..."
+wait_for_deployment "product-service" "default"
+wait_for_deployment "inventory-service" "default"
+wait_for_deployment "order-service" "default"
+wait_for_deployment "notification-service" "default"
+wait_for_deployment "api-gateway" "default"
+wait_for_deployment "frontend" "default"
+wait_for_deployment "microservices-gateway" "default"
+
+# 6. Install NGINX Ingress Controller
+echo "🌐 Installing NGINX Ingress Controller..."
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/cloud/deploy.yaml
+
+echo "⏳ Waiting for NGINX Ingress Controller to be ready..."
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=300s
+
+# 7. Deploy ingress
 echo "🌐 Deploying ingress..."
 kubectl apply -f k8s/ingress.yaml
 

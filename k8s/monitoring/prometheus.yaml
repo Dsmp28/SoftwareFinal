@@ -65,28 +65,12 @@ data:
             target_label: kubernetes_pod_name
 ---
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: prometheus-pv
-  labels:
-    type: local
-spec:
-  storageClassName: standard
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/data/prometheus
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: prometheus-pvc
   namespace: default
 spec:
-  storageClassName: standard
+  storageClassName: standard-rwo
   accessModes:
     - ReadWriteOnce
   resources:
@@ -110,6 +94,10 @@ spec:
       labels:
         app: prometheus
     spec:
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
       containers:
       - name: prometheus
         image: prom/prometheus:v2.46.0

@@ -10,28 +10,12 @@ data:
     CREATE DATABASE IF NOT EXISTS keycloak;
 ---
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: mysql-pv
-  labels:
-    type: local
-spec:
-  storageClassName: standard
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/data/mysql
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mysql-pvc
   namespace: default
 spec:
-  storageClassName: standard
+  storageClassName: standard-rwo
   accessModes:
     - ReadWriteOnce
   resources:
@@ -62,9 +46,15 @@ spec:
         - containerPort: 3306
         env:
         - name: MYSQL_ROOT_PASSWORD
-          value: "mysql"
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: mysql-root-password
         - name: MYSQL_DATABASE
-          value: "inventory_service"
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: mysql-database
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql

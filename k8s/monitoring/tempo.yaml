@@ -49,28 +49,12 @@ data:
           queue_depth: 10000
 ---
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: tempo-pv
-  labels:
-    type: local
-spec:
-  storageClassName: standard
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/data/tempo
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: tempo-pvc
   namespace: default
 spec:
-  storageClassName: standard
+  storageClassName: standard-rwo
   accessModes:
     - ReadWriteOnce
   resources:

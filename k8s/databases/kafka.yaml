@@ -1,26 +1,10 @@
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: kafka-pv
-  labels:
-    type: local
-spec:
-  storageClassName: standard
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/data/kafka
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: kafka-pvc
   namespace: default
 spec:
-  storageClassName: standard
+  storageClassName: standard-rwo
   accessModes:
     - ReadWriteOnce
   resources:
@@ -95,6 +79,10 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:7.4.0
@@ -106,25 +94,31 @@ spec:
         - name: KAFKA_ZOOKEEPER_CONNECT
           value: "zookeeper:2181"
         - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-          value: "PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT"
+          value: "PLAINTEXT:PLAINTEXT"
+        - name: KAFKA_LISTENERS
+          value: "PLAINTEXT://0.0.0.0:9092"
         - name: KAFKA_ADVERTISED_LISTENERS
-          value: "PLAINTEXT://kafka:9092,PLAINTEXT_INTERNAL://kafka:29092"
+          value: "PLAINTEXT://kafka:9092"
         - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
           value: "1"
         - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
           value: "1"
         - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
           value: "1"
+        - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+          value: "true"
+        - name: KAFKA_LOG_RETENTION_HOURS
+          value: "168"
         volumeMounts:
         - name: kafka-storage
           mountPath: /var/lib/kafka/data
         resources:
           requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
             memory: "1Gi"
             cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
         readinessProbe:
           tcpSocket:
             port: 9092
@@ -139,10 +133,6 @@ spec:
       - name: kafka-storage
         persistentVolumeClaim:
           claimName: kafka-pvc
-      initContainers:
-      - name: wait-for-zookeeper
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nslookup zookeeper; do echo waiting for zookeeper; sleep 2; done;']
 ---
 apiVersion: v1
 kind: Service
@@ -208,10 +198,6 @@ spec:
             port: 8085
           initialDelaySeconds: 60
           periodSeconds: 30
-      initContainers:
-      - name: wait-for-kafka
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nslookup kafka; do echo waiting for kafka; sleep 2; done;']
 ---
 apiVersion: v1
 kind: Service
