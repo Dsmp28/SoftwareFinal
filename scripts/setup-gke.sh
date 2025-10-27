@@ -6,14 +6,14 @@
 set -e
 
 # Configuration
-PROJECT_ID="${GOOGLE_CLOUD_PROJECT}"
-CLUSTER_NAME="microservices-cluster"
-REGION="us-central1"
+PROJECT_ID="strange-math-475005-p1"
+CLUSTER_NAME="software-cluster"
+ZONE="us-east1-b"
 NODE_POOL_NAME="main-pool"
-MACHINE_TYPE="e2-standard-4"
+MACHINE_TYPE="e2-standard-2"
 NUM_NODES="3"
 MIN_NODES="1"
-MAX_NODES="10"
+MAX_NODES="5"
 
 if [ -z "$PROJECT_ID" ]; then
     echo "Please set GOOGLE_CLOUD_PROJECT environment variable"
@@ -30,14 +30,14 @@ gcloud services enable cloudbuild.googleapis.com --project=$PROJECT_ID
 
 # Create GKE cluster
 echo "Creating GKE cluster..."
-gcloud container clusters create $CLUSTER_NAME \
-    --project=$PROJECT_ID \
-    --region=$REGION \
-    --machine-type=$MACHINE_TYPE \
-    --num-nodes=$NUM_NODES \
+gcloud container clusters create software-cluster \
+    --project=strange-math-475005-p1 \
+    --zone=us-east1-b \
+    --machine-type=e2-standard-2 \
+    --num-nodes=3 \
     --enable-autoscaling \
-    --min-nodes=$MIN_NODES \
-    --max-nodes=$MAX_NODES \
+    --min-nodes=1 \
+    --max-nodes=5 \
     --enable-autorepair \
     --enable-autoupgrade \
     --disk-size=50GB \
@@ -45,13 +45,12 @@ gcloud container clusters create $CLUSTER_NAME \
     --enable-ip-alias \
     --network=default \
     --subnetwork=default \
-    --addons=HorizontalPodAutoscaling,HttpLoadBalancing,NetworkPolicy \
-    --enable-network-policy \
-    --workload-pool=$PROJECT_ID.svc.id.goog
+    --addons=HorizontalPodAutoscaling,HttpLoadBalancing \
+    --workload-pool=strange-math-475005-p1.svc.id.goog
 
 # Get cluster credentials
 echo "Getting cluster credentials..."
-gcloud container clusters get-credentials $CLUSTER_NAME --region=$REGION --project=$PROJECT_ID
+gcloud container clusters get-credentials $CLUSTER_NAME --zone=$ZONE --project=$PROJECT_ID
 
 # Install NGINX Ingress Controller
 echo "Installing NGINX Ingress Controller..."
@@ -67,16 +66,16 @@ kubectl wait --namespace ingress-nginx \
 # Create namespace for monitoring (if needed)
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
-echo "✅ GKE cluster created successfully!"
-echo "📝 Cluster details:"
+echo " GKE cluster created successfully!"
+echo "=� Cluster details:"
 echo "   Name: $CLUSTER_NAME"
-echo "   Region: $REGION"
+echo "   Zone: $ZONE"
 echo "   Project: $PROJECT_ID"
 echo "   Nodes: $NUM_NODES (autoscaling: $MIN_NODES-$MAX_NODES)"
 echo ""
-echo "🔗 Connect to your cluster:"
-echo "   gcloud container clusters get-credentials $CLUSTER_NAME --region=$REGION --project=$PROJECT_ID"
+echo "= Connect to your cluster:"
+echo "   gcloud container clusters get-credentials $CLUSTER_NAME --zone=$ZONE --project=$PROJECT_ID"
 echo ""
-echo "📝 Next steps:"
+echo "=� Next steps:"
 echo "   1. Run ./scripts/build-images.sh to build and push Docker images"
 echo "   2. Run ./scripts/deploy.sh to deploy the application"

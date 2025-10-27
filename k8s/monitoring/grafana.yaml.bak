@@ -1,0 +1,14 @@
+metadata:
+  name: grafana-pv
+  labels:
+    type: local
+spec:
+  storageClassName: standard-rwo
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/data/grafana
+---

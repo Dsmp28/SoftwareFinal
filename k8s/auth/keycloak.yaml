@@ -46,28 +46,12 @@ data:
     }
 ---
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: keycloak-mysql-pv
-  labels:
-    type: local
-spec:
-  storageClassName: standard
-  capacity:
-    storage: 5Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  hostPath:
-    path: /mnt/data/keycloak-mysql
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: keycloak-mysql-pvc
   namespace: default
 spec:
-  storageClassName: standard
+  storageClassName: standard-rwo
   accessModes:
     - ReadWriteOnce
   resources:

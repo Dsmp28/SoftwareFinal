@@ -1,0 +1,14 @@
+metadata:
+  name: tempo-pv
+  labels:
+    type: local
+spec:
+  storageClassName: standard-rwo
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /mnt/data/tempo
+---
